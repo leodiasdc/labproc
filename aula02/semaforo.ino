@@ -1,30 +1,25 @@
+#include <Adafruit_NeoPixel.h>
 
-const int PIN_VERDE   = 3;
-const int PIN_AMARELO = 4;
-const int PIN_VERMELHO = 5;
-
-const unsigned long TEMPO_VERDE   = 3000; 
-const unsigned long TEMPO_AMARELO = 1000;
-const unsigned long TEMPO_VERMELHO = 4000;
+#define PIN        8 
+#define NUMPIXELS  1 
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
-  pinMode(PIN_VERDE, OUTPUT);
-  pinMode(PIN_AMARELO, OUTPUT);
-  pinMode(PIN_VERMELHO, OUTPUT);
-  
+  pixels.begin(); 
+  pixels.setBrightness(50); 
 }
 
 void loop() {
-  digitalWrite(PIN_VERDE, HIGH);
-  delay(TEMPO_VERDE);
-  digitalWrite(PIN_VERDE, LOW);
-  
-  digitalWrite(PIN_AMARELO, HIGH);
-  delay(TEMPO_AMARELO);
-  digitalWrite(PIN_AMARELO, LOW);
+  pixels.clear(); 
+  pixels.setPixelColor(0, pixels.Color(255, 0, 0));
+  pixels.show();
+  delay(4000);
 
-  digitalWrite(PIN_VERMELHO, HIGH);
-  delay(TEMPO_VERMELHO);
-  digitalWrite(PIN_VERMELHO, LOW);
+  pixels.setPixelColor(0, pixels.Color(0, 255, 0));
+  pixels.show();
+  delay(3000);
+
+  pixels.setPixelColor(0, pixels.Color(255, 255, 0));
+  pixels.show();
+  delay(1000);
 }
-
