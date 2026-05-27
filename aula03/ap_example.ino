@@ -1,30 +1,22 @@
-/*********
-  Rui Santos & Sara Santos - Random Nerd Tutorials
-  Complete project details at https://RandomNerdTutorials.com/esp32-async-web-server-espasyncwebserver-library/
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-*********/
-
-// Import required libraries
 #include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+#include <WebServer.h>
 
-// Replace with your network credentials
-const char* ssid = "iPhone";
-const char* password = "07092005";
+// Defina o nome da rede Wi-Fi e a senha que o ESP32 vai criar
+const char* ssid = "LABPROC";
+const char* password = "12345678";
 
-const long int PIN_LED1 = 23;
-const long int PIN_LED2 = 22;
-const long int PIN_LED3 = 21;
-const long int PIN_LED4 = 19;
+// Inicializa o servidor web na porta padrão HTTP (porta 80)
+WebServer server(80);
 
-// Create AsyncWebServer object on port 80
-AsyncWebServer server(80);
+const long int PIN_LED1 = 7;
+const long int PIN_LED2 = 6;
+const long int PIN_LED3 = 5;
+const long int PIN_LED4 = 4;
 
-int8_t parse_to_int8(String a) ->  {
-  long int value = strtol(a.c_str(), NULL, 2);
-  int8_t result = (int8_t)value;
+// CORREÇÃO: Adicionado o 'return' e alterado a base de 2 para 10 (Decimal)
+int8_t parse_to_int8(String a) {
+  long int value = strtol(a.c_str(), NULL, 10); 
+  return (int8_t)value; 
 }
 
 void setGPIOs(int8_t value) {
@@ -34,68 +26,9 @@ void setGPIOs(int8_t value) {
   digitalWrite(PIN_LED4, (value >> 3) & 0x01);
 }
 
-void setup(){
-  // Serial port for debugging purposes
-  Serial.begin(115200);
-
-  // Seta os pinos dos LEDs para output
-  pinMode(PIN_LED1, OUTPUT);
-  pinMode(PIN_LED2, OUTPUT);
-  pinMode(PIN_LED3, OUTPUT);
-  pinMode(PIN_LED4, OUTPUT);
-
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
-
-  // Print ESP Local IP Address
-  Serial.println(WiFi.localIP());
-
-  // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", index_html);
-  });
-
-  // Send a GET request to <ESP_IP>/calc?a=<valueA>&b=<valueB>&op=<operation>
-  server.on("/calc", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    String a, b, op;
-    // GET input1 value on <ESP_IP>/calc?a=<valueA>&b=<valueB>&op=<operation>
-    if (request->hasParam("a") && request->hasParam("b") && request->hasParam("op")) {
-      a = request->getParam("a")->value();
-      b = request->getParam("b")->value();
-      op = request->getParam("op")->value();
-    }
-    int8_t valueA = parse_to_int8(a);
-    int8_t valueB = parse_to_int8(b);
-
-    if (op == "sum") {
-      int8_t result = (valueA + valueB) & 0x0F; 
-      request->send(200, "text/plain", String(result));
-    } else if (op == "sub") {
-      int8_t result = (valueA - valueB) & 0x0F; 
-      request->send(200, "text/plain", String(result));
-    } else {
-      request->send(400, "text/plain", "Invalid operation");
-    }
-    
-    setGPIOs(result);
-    request->send(200, "text/plain", "OK");
-  });
-
-  // Start server
-  server.begin();
-}
-
-void loop() {
-
-}
-
-
-const char index_html[] PROGMEM = R"rawliteral(
+// Função que monta a página HTML que será exibida no navegador
+void handleRoot() {
+  const char html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
   <title>ESP32 Calculator</title>
@@ -106,7 +39,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     body {max-width: 600px; margin:0px auto; padding: 25px;}
     input {width: 100px; font-size: 1.2rem; margin: 8px;}
     button {font-size: 1.1rem; padding: 10px 14px; margin: 8px;}
-    #result {font-size: 1.4rem; margin-top: 20px; display: block;}
+    #result {font-size: 1.4rem; margin-top: 20px; display: block; font-weight: bold;}
   </style>
 </head>
 <body>
@@ -118,24 +51,91 @@ const char index_html[] PROGMEM = R"rawliteral(
     <button onclick="sendCalc('sub')">Subtract</button>
   </div>
   <span id="result">Result: </span>
+
 <script>
-function sendCalc(op) {
+async function sendCalc(op) {
   var a = document.getElementById('valueA').value;
   var b = document.getElementById('valueB').value;
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === XMLHttpRequest.DONE) {
-      if (xhr.status === 200) {
-        document.getElementById('result').innerText = 'Result: ' + xhr.responseText;
-      } else {
-        document.getElementById('result').innerText = 'Error';
-      }
+
+  if (a === "" || b === "") {
+    document.getElementById("result").innerHTML = "Result: Por favor, preencha ambos os campos.";
+    return;
+  }
+
+  try {
+    let resposta = await fetch(`/calc?a=${a}&b=${b}&op=${op}`);
+    
+    if (resposta.ok) {
+      let texto = await resposta.text();
+      document.getElementById("result").innerHTML = "Result: " + texto;
+    } else {
+      document.getElementById("result").innerHTML = "Result: Erro no servidor.";
     }
-  };
-  xhr.open('GET', '/calc?a=' + encodeURIComponent(a) + '&b=' + encodeURIComponent(b) + '&op=' + encodeURIComponent(op), true);
-  xhr.send();
+  } catch (erro) {
+    document.getElementById("result").innerHTML = "Result: Erro de conexão.";
+    console.error("Erro na requisição:", erro);
+  }
 }
 </script>
 </body>
 </html>
 )rawliteral";
+  
+  server.send(200, "text/html", html);
+}
+
+void calcular(){
+    String a = server.arg("a");
+    String b = server.arg("b");
+    String op = server.arg("op");
+
+    int8_t valueA = parse_to_int8(a);
+    int8_t valueB = parse_to_int8(b);
+    int8_t result = 0;
+
+    if (op == "sum") {
+      result = (valueA + valueB) & 0x0F;
+    } else {
+      result = (valueA - valueB) & 0x0F; 
+    } 
+
+    setGPIOs(result);
+
+    // Prints de Debug no Monitor Serial
+    Serial.print("Value A: "); Serial.println(valueA);
+    Serial.print("Operation: "); Serial.println(op);
+    Serial.print("Value B: "); Serial.println(valueB);
+    Serial.print("Resultado: "); Serial.println(result);
+    Serial.println("-----------------------");
+
+    // Retorna o resultado como Texto Plano (mais adequado para o fetch receber)
+    server.send(200, "text/plain", String(result));
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("\nIniciando configuração do ESP32...");
+
+  pinMode(PIN_LED1, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
+  pinMode(PIN_LED3, OUTPUT);
+  pinMode(PIN_LED4, OUTPUT);
+
+  WiFi.softAP(ssid, password);
+  IPAddress IP = WiFi.softAPIP();
+  
+  Serial.println("=========================================");
+  Serial.print("Rede Wi-Fi criada: "); Serial.println(ssid);
+  Serial.print("Endereço IP do Servidor: "); Serial.println(IP);
+  Serial.println("=========================================");
+
+  server.on("/", handleRoot);
+  server.on("/calc", calcular);
+  server.begin();
+  Serial.println("Servidor HTTP iniciado com sucesso.");
+}
+
+void loop() {
+  server.handleClient();
+  delay(2);
+}
