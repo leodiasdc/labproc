@@ -1,160 +1,143 @@
-#include <WiFi.h>
-#include <WebServer.h>
+#include <Arduino.h>
 
-const char* ssid = "LABPROC";
-const char* password = "12345678";
-
-WebServer server(80);
-
-const long int PIN_LED1 = 7;
-const long int PIN_LED2 = 6;
+const long int PIN_LED1 = 7; 
+const long int PIN_LED2 = 6; 
 const long int PIN_LED3 = 5;
-const long int PIN_LED4 = 4;
+const long int PIN_LED4 = 4; 
 
-int8_t parse_to_int8(String a) {
-  long int value = strtol(a.c_str(), NULL, 10); 
-  return (int8_t)value; 
-}
-
-void setGPIOs(int8_t value) {
+void setGPIOs(uint8_t value) {
   digitalWrite(PIN_LED1, value & 0x01);
   digitalWrite(PIN_LED2, (value >> 1) & 0x01);
   digitalWrite(PIN_LED3, (value >> 2) & 0x01);
   digitalWrite(PIN_LED4, (value >> 3) & 0x01);
 }
 
-void handleRoot() {
-  const char html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
-<head>
-  <title>ESP32 Calculator</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:,">
-  <style>
-    html {font-family: Arial; display: inline-block; text-align: center;}
-    body {max-width: 600px; margin:0px auto; padding: 25px;}
-    input {width: 100px; font-size: 1.2rem; margin: 8px;}
-    button {font-size: 1.1rem; padding: 10px 14px; margin: 8px;}
-    #result {font-size: 1.4rem; margin-top: 20px; display: block; font-weight: bold;}
-  </style>
-</head>
-<body>
-  <h2>ESP32 Calculator</h2>
-  <input type="number" id="valueA" placeholder="Value A">
-  <input type="number" id="valueB" placeholder="Value B">
-  <div>
-    <button onclick="sendCalc('sum')">Sum</button>
-    <button onclick="sendCalc('sub')">Subtract</button>
-  </div>
-  <span id="result">Result: </span>
+uint8_t paraComplementoDeUm(int decimal) {
+  if (decimal >= 0) {
+    return (uint8_t)(decimal & 0x0F);
+  } else {
+    uint8_t positivo = (uint8_t)(-decimal) & 0x0F;
+    return (uint8_t)(~positivo & 0x0F);
+  }
+}
 
-<script>
-async function sendCalc(op) {
-  var a = document.getElementById('valueA').value;
-  var b = document.getElementById('valueB').value;
+int paraDecimal(uint8_t comp1) {
+  if (comp1 & 0x08) {
+    return -((~comp1) & 0x0F);
+  }
+  return comp1 & 0x0F;
+}
 
-  if (a === "" || b === "") {
-    document.getElementById("result").innerHTML = "Result: Por favor, preencha ambos os campos.";
+String stringBinaria(uint8_t valor) {
+  String str = "";
+  for (int i = 3; i >= 0; i--) {
+    str += ((valor >> i) & 0x01) ? "1" : "0";
+  }
+  return str;
+}
+
+uint8_t somarComplementoDeUm(uint8_t a, uint8_t b, bool &overflow) {
+  uint16_t somaBruta = (uint16_t)a + (uint16_t)b;
+
+  if (somaBruta & 0x10) {
+    somaBruta = (somaBruta & 0x0F) + 1; 
+  }
+  
+  uint8_t resultado = somaBruta & 0x0F;
+
+  uint8_t sinalA = a & 0x08;
+  uint8_t sinalB = b & 0x08;
+  uint8_t sinalR = resultado & 0x08;
+  
+  if (sinalA == sinalB && sinalA != sinalR) {
+    if (!((a == 0x00 && b == 0x0F) || (a == 0x0F && b == 0x00))) {
+      overflow = true;
+    }
+  }
+  
+  return resultado;
+}
+
+void processarCalculo(int numA, char op, int numB) {
+  if (numA < -7 || numA > 7 || numB < -7 || numB > 7) {
+    Serial.println("Erro: Entradas fora do limite para 4 bits em Comp. de 1 (-7 a +7).");
     return;
   }
 
-  try {
-    let resposta = await fetch(`/calc?a=${a}&b=${b}&op=${op}`);
-    
-    if (resposta.ok) {
-      let texto = await resposta.text();
-      document.getElementById("result").innerHTML = "Result: " + texto;
-    } else {
-      document.getElementById("result").innerHTML = "Result: Erro no servidor.";
-    }
-  } catch (erro) {
-    document.getElementById("result").innerHTML = "Result: Erro de conexão.";
-    console.error("Erro na requisição:", erro);
+  uint8_t compA = paraComplementoDeUm(numA);
+  uint8_t compB = paraComplementoDeUm(numB);
+  uint8_t resultadoBinario = 0;
+  bool overflow = false;
+
+  Serial.println("\n=========================================");
+  Serial.print("Operação: "); Serial.print(numA); Serial.print(" "); Serial.print(op); Serial.print(" "); Serial.println(numB);
+  Serial.print("A em Binário: "); Serial.println(stringBinaria(compA));
+  Serial.print("B em Binário: "); Serial.println(stringBinaria(compB));
+  Serial.println("-----------------------------------------");
+
+  if (op == '+') {
+    resultadoBinario = somarComplementoDeUm(compA, compB, overflow);
+  } 
+  else if (op == '-') {
+    uint8_t compBNegado = ~compB & 0x0F; 
+    Serial.print("B Negado (NOT B): "); Serial.println(stringBinaria(compBNegado));
+    resultadoBinario = somarComplementoDeUm(compA, compBNegado, overflow);
+  } 
+  else {
+    Serial.println("Operador inválido! Use apenas '+' ou '-'.");
+    return;
   }
-}
-</script>
-</body>
-</html>
-)rawliteral";
-  
-  server.send(200, "text/html", html);
-}
 
-void calcular(){
-    String a = server.arg("a");
-    String b = server.arg("b");
-    String op = server.arg("op");
-
-    int8_t valueA = parse_to_int8(a);
-    int8_t valueB = parse_to_int8(b);
+  if (overflow) {
+    setGPIOs(0); 
+    Serial.println("STATUS: OVERFLOW! O resultado estourou os limites de 4 bits.");
+  } else {
+    setGPIOs(resultadoBinario); 
     
-    int tempResult = 0; 
-    bool overflow = false;
-
-    if (op == "sum") {
-      tempResult = (valueA + valueB);
-      if (tempResult > 7 || tempResult < -8) {
-        overflow = true;
-      }
-    } else {
-      tempResult = valueA - valueB;
-      if (tempResult < -8 || tempResult > 7) {
-        overflow = true;
-      }
-    } 
-
-    String respostaServidor = "";
-
-    if (overflow) {
-      setGPIOs(0); 
-      respostaServidor = "Overflow! (Fora do limite de 4 bits)";
-    } else {
-      int8_t result = (int8_t)tempResult;
-      setGPIOs(result);
-
-      for (int i = 3; i >= 0; i--) {
-        if ((result >> i) & 0x01) {
-          respostaServidor += "1";
-        } else {
-          respostaServidor += "0";
-        }
-      }
-    }
-
-    Serial.print("Value A: "); Serial.println(valueA);
-    Serial.print("Operation: "); Serial.println(op);
-    Serial.print("Value B: "); Serial.println(valueB);
-    Serial.print("Resultado Numérico: "); Serial.println(tempResult);
-    Serial.print("Status: "); Serial.println(overflow ? "OVERFLOW!" : "OK");
-    Serial.println("-----------------------");
-
-    server.send(200, "text/plain", respostaServidor);
+    int resultadoDecimal = paraDecimal(resultadoBinario);
+    Serial.print("RESULTADO BINÁRIO: "); Serial.println(stringBinaria(resultadoBinario));
+    Serial.print("RESULTADO DECIMAL: "); Serial.print(resultadoDecimal);
+    
+    if (resultadoBinario == 0x00) Serial.println(" (+0)");
+    else if (resultadoBinario == 0x0F) Serial.println(" (-0)");
+    else Serial.println();
+  }
+  Serial.println("=========================================");
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\nIniciando configuração do ESP32...");
-
+  while (!Serial) { delay(10); } 
+  
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
   pinMode(PIN_LED3, OUTPUT);
   pinMode(PIN_LED4, OUTPUT);
-
-  WiFi.softAP(ssid, password);
-  IPAddress IP = WiFi.softAPIP();
   
-  Serial.println("=========================================");
-  Serial.print("Rede Wi-Fi criada: "); Serial.println(ssid);
-  Serial.print("Endereço IP do Servidor: "); Serial.println(IP);
-  Serial.println("=========================================");
+  setGPIOs(0); 
 
-  server.on("/", handleRoot);
-  server.on("/calc", calcular);
-  server.begin();
-  Serial.println("Servidor HTTP iniciado com sucesso.");
+  Serial.println("\n=== CALCULADORA SERIAL: COMPLEMENTO DE UM (4 BITS) ===");
+  Serial.println("Instruções: Digite a equação separada por espaços.");
+  Serial.println("Exemplos válidos: '5 + 2' , '3 - 7' , '-4 + -2'");
+  Serial.println("Limites aceitáveis: -7 a +7");
+  Serial.println("======================================================");
 }
 
 void loop() {
-  server.handleClient();
-  delay(2);
+  if (Serial.available() > 0) {
+    int valorA = Serial.parseInt();
+    char operador = Serial.read();
+    
+    while (operador == ' ') {
+      operador = Serial.read();
+    }
+    
+    int valorB = Serial.parseInt();
+    
+    while (Serial.available() > 0) {
+      Serial.read();
+    }
+
+    processarCalculo(valorA, operador, valorB);
+  }
 }
