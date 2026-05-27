@@ -1,11 +1,9 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// Defina o nome da rede Wi-Fi e a senha que o ESP32 vai criar
 const char* ssid = "LABPROC";
 const char* password = "12345678";
 
-// Inicializa o servidor web na porta padrão HTTP (porta 80)
 WebServer server(80);
 
 const long int PIN_LED1 = 7;
@@ -13,7 +11,6 @@ const long int PIN_LED2 = 6;
 const long int PIN_LED3 = 5;
 const long int PIN_LED4 = 4;
 
-// CORREÇÃO: Adicionado o 'return' e alterado a base de 2 para 10 (Decimal)
 int8_t parse_to_int8(String a) {
   long int value = strtol(a.c_str(), NULL, 10); 
   return (int8_t)value; 
@@ -26,7 +23,6 @@ void setGPIOs(int8_t value) {
   digitalWrite(PIN_LED4, (value >> 3) & 0x01);
 }
 
-// Função que monta a página HTML que será exibida no navegador
 void handleRoot() {
   const char html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
@@ -101,14 +97,12 @@ void calcular(){
 
     setGPIOs(result);
 
-    // Prints de Debug no Monitor Serial
     Serial.print("Value A: "); Serial.println(valueA);
     Serial.print("Operation: "); Serial.println(op);
     Serial.print("Value B: "); Serial.println(valueB);
     Serial.print("Resultado: "); Serial.println(result);
     Serial.println("-----------------------");
 
-    // Retorna o resultado como Texto Plano (mais adequado para o fetch receber)
     server.send(200, "text/plain", String(result));
 }
 
