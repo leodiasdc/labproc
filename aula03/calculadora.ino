@@ -87,23 +87,48 @@ void calcular(){
 
     int8_t valueA = parse_to_int8(a);
     int8_t valueB = parse_to_int8(b);
-    int8_t result = 0;
+    
+    int tempResult = 0; 
+    bool overflow = false;
 
     if (op == "sum") {
-      result = (valueA + valueB) & 0x0F;
+      tempResult = (valueA + valueB);
+      if (tempResult > 7 || tempResult < -8) {
+        overflow = true;
+      }
     } else {
-      result = (valueA - valueB) & 0x0F; 
+      tempResult = valueA - valueB;
+      if (tempResult < -8 || tempResult > 7) {
+        overflow = true;
+      }
     } 
 
-    setGPIOs(result);
+    String respostaServidor = "";
+
+    if (overflow) {
+      setGPIOs(0); 
+      respostaServidor = "Overflow! (Fora do limite de 4 bits)";
+    } else {
+      int8_t result = (int8_t)tempResult;
+      setGPIOs(result);
+
+      for (int i = 3; i >= 0; i--) {
+        if ((result >> i) & 0x01) {
+          respostaServidor += "1";
+        } else {
+          respostaServidor += "0";
+        }
+      }
+    }
 
     Serial.print("Value A: "); Serial.println(valueA);
     Serial.print("Operation: "); Serial.println(op);
     Serial.print("Value B: "); Serial.println(valueB);
-    Serial.print("Resultado: "); Serial.println(result);
+    Serial.print("Resultado Numérico: "); Serial.println(tempResult);
+    Serial.print("Status: "); Serial.println(overflow ? "OVERFLOW!" : "OK");
     Serial.println("-----------------------");
 
-    server.send(200, "text/plain", String(result));
+    server.send(200, "text/plain", respostaServidor);
 }
 
 void setup() {
