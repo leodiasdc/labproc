@@ -246,7 +246,7 @@ void runNonRegressionTests() {
     assertTest("Multiplicação Sem Estouro", 3, 2, "mul", 6, false);
     assertTest("Multiplicação Com Estouro (4*2)", 4, 2, "mul", -8, true);  // 4 * 2 = 8 -> vira -8 em 4 bits
     assertTest("Fatorial Válido", 3, 0, "fact", 6, false);
-    assertTest("Fatorial com Overflow (4!)", 4, 0, "fact", 8, true);    // 4! = 24 -> 24 % 16 = 8 -> vira -8 em 4 bits
+    assertTest("Fatorial com Overflow (4!)", 4, 0, "fact", -8, true);    // 4! = 24 -> 24 % 16 = 8 -> vira -8 em 4 bits
   #else
   #endif
 
