@@ -47,7 +47,6 @@ calc_t applyWordSizeLimits(int64_t rawValue) {
 // acionar LEDs
 void setGPIOs(calc_t value) {
   uint8_t lsb_4bits = (uint8_t)(value & 0x0F);
-  
   digitalWrite(PIN_LED1, (lsb_4bits >> 0) & 0x01);
   digitalWrite(PIN_LED2, (lsb_4bits >> 1) & 0x01);
   digitalWrite(PIN_LED3, (lsb_4bits >> 2) & 0x01);
@@ -79,11 +78,40 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
     }
   } 
   else if (op == "mul") {
-    tempResult = (int64_t)a * b;
+    // Implementação manual por meio de loop de somas sucessivas
+    // Tratando os sinais para realizar a soma com valores absolutos
+    int64_t absA = abs((int64_t)a);
+    int64_t absB = abs((int64_t)b);
+    int64_t accumulatedSum = 0;
+
+    for (int i = 0; i < absB; i++) {
+      accumulatedSum += absA;
+    }
+
+    // Aplica o sinal correto ao resultado final
+    if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
+      tempResult = -accumulatedSum;
+    } else {
+      tempResult = accumulatedSum;
+    }
+
     if (tempResult > MAX_LIMIT || tempResult < MIN_LIMIT) {
       overflow = true;
     }
   } 
+  else if (op == "div") {
+    // Guarda de segurança: divisão por zero
+    if (b == 0) {
+      overflow = true;
+      tempResult = 0; 
+    } else {
+      tempResult = (int64_t)a / b;
+      // No complemento de dois, o único overflow possível na divisão é MIN_LIMIT / -1
+      if (tempResult > MAX_LIMIT || tempResult < MIN_LIMIT) {
+        overflow = true;
+      }
+    }
+  }
   else if (op == "fact") {
     tempResult = computeFactorial(a);
     if (tempResult < 0 || tempResult > MAX_LIMIT) {
@@ -122,8 +150,10 @@ void handleRoot() {
       <option value="add">Soma (+)</option>
       <option value="sub">Subtração (-)</option>
       <option value="mul">Multiplicação (*)</option>
+      <option value="div">Divisão (/)</option>
       <option value="fact">Fatorial (!)</option>
     </select>
+
     <br>
     <input type="number" id="valueB" placeholder="Operando B (Dec)">
   </div>
@@ -155,7 +185,6 @@ void handleRoot() {
       const ovfAlert = document.getElementById("overflowContainer");
 
       ovfAlert.style.display = "none";
-
       fetch(`/calc?a=${valA}&b=${valB}&op=${op}`)
         .then(response => response.json())
         .then(data => {
@@ -178,7 +207,6 @@ void handleRoot() {
 }
 
 void handleCalculator() {
-
     calc_t valA = (calc_t)server.arg("a").toInt();
     calc_t valB = (calc_t)server.arg("b").toInt();
     String op = server.arg("op");
@@ -214,7 +242,6 @@ void handleCalculator() {
     Serial.printf("Status de Overflow: %s\n", overflow ? "DETECTADO!" : "OK");
     Serial.printf("Duração do Ciclo: %u microssegundos\n", elapsed);
     Serial.println("------------------------------------");
-
     server.send(200, "application/json", jsonResponse);
 }
 
@@ -227,7 +254,6 @@ void runNonRegressionTests() {
     testesTotais++;
     bool currentOvf = false;
     calc_t currentRes = executeOperation(a, b, op, currentOvf);
-
     if (currentRes == expectedRes && currentOvf == expectedOvf) {
       Serial.printf("  [PASS] %s -> Entrada: (%d, %d) | Res Mascarado Esperado: %d | Ovf: %s\n", 
                     name, (int)a, (int)b, (int)expectedRes, expectedOvf ? "Sim" : "Não");
@@ -240,27 +266,25 @@ void runNonRegressionTests() {
 
   #if NUM_BITS == 4
     assertTest("Soma Padrão", 2, 2, "add", 4, false);
-    assertTest("Soma com Overflow Positivo (5+4)", 5, 4, "add", -7, true); // 5 + 4 = 9 -> vira -7 em 4 bits
+    assertTest("Soma com Overflow Positivo (5+4)", 5, 4, "add", -7, true);
     assertTest("Subtração Padrão", 5, 2, "sub", 3, false);
-    assertTest("Subtração com Overflow Negativo (-6-3)", -6, 3, "sub", 7, true); // -6 - 3 = -9 -> vira 7 em 4 bits
-    assertTest("Multiplicação Sem Estouro", 3, 2, "mul", 6, false);
-    assertTest("Multiplicação Com Estouro (4*2)", 4, 2, "mul", -8, true);  // 4 * 2 = 8 -> vira -8 em 4 bits
+    assertTest("Subtração com Overflow Negativo (-6-3)", -6, 3, "sub", 7, true);
+    assertTest("Multiplicação Sem Estouro (Loop)", 3, 2, "mul", 6, false);
+    assertTest("Multiplicação Com Estouro (Loop)", 4, 2, "mul", -8, true); 
+    assertTest("Divisão Padrão (6 / 2)", 6, 2, "div", 3, false);
+    assertTest("Divisão por Zero (Guarda)", 5, 0, "div", 0, true);
     assertTest("Fatorial Válido", 3, 0, "fact", 6, false);
-    assertTest("Fatorial com Overflow (4!)", 4, 0, "fact", -8, true);    // 4! = 24 -> 24 % 16 = 8 -> vira -8 em 4 bits
-  #else
+    assertTest("Fatorial com Overflow (4!)", 4, 0, "fact", -8, true);     
   #endif
 
   Serial.printf(">>> [TESTS COMPLETE] %d/%d sub-rotinas passaram com sucesso.\n\n", testesPassaram, testesTotais);
 }
 
-// ==========================================
-// INICIALIZAÇÃO DO SISTEMA
-// ==========================================
 void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n=========================================");
-  Serial.println("Inicializando Firmware ESP32 Refatorado...");
+  Serial.println("Firmware Refatorado com Divisão e Multiplicação em Loop...");
   Serial.printf("Configuração Atual da Palavra: %d bits\n", NUM_BITS);
   Serial.println("=========================================");
 
@@ -270,10 +294,8 @@ void setup() {
   pinMode(PIN_LED4, OUTPUT);
   setGPIOs(0); 
 
-  // execução do pipeline de testes antes do servidor subir
   runNonRegressionTests();
 
-  // Inicialização do Wi-Fi Access Point Autônomo
   WiFi.softAP(ssid, password);
   IPAddress IP = WiFi.softAPIP();
   
@@ -282,7 +304,6 @@ void setup() {
   Serial.print("Endereço IP do Web Server: "); Serial.println(IP);
   Serial.println("=========================================");
 
-  // Definição das rotas HTTP do servidor
   server.on("/", handleRoot);
   server.on("/calc", handleCalculator);
 
