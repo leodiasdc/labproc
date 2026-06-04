@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-#define NUM_BITS 8  
+#define NUM_BITS 8
 
 typedef int32_t calc_t;
 const calc_t MAX_LIMIT = (calc_t)((1ULL << (NUM_BITS - 1)) - 1);

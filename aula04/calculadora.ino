@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-#define NUM_BITS 8  // alterar para 8, 16, 32 bits que todo o comportamento se adapta
+#define NUM_BITS 4  // alterar para 8, 16, 32 bits que todo o comportamento se adapta
 
 typedef int32_t calc_t;
 const calc_t MAX_LIMIT = (calc_t)((1ULL << (NUM_BITS - 1)) - 1);
