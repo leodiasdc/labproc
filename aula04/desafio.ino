@@ -88,7 +88,6 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
   } 
   else if (op == "div") {
     if (b == 0) {
-      overflow = true;
       tempResult = 0; 
     } else {
       tempResult = (int64_t)a / b;
