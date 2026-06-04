@@ -7,13 +7,11 @@ typedef int32_t calc_t;
 const calc_t MAX_LIMIT = (calc_t)((1ULL << (NUM_BITS - 1)) - 1);
 const calc_t MIN_LIMIT = (calc_t)(-(1ULL << (NUM_BITS - 1)));
 
-// credenciais do access point Wi-Fi
 const char* ssid = "LABPROC";
 const char* password = "12345678";
 
 WebServer server(80);
 
-// Definição dos pinos dos LEDs
 const int PIN_LED1 = 7; // LSB
 const int PIN_LED2 = 6; 
 const int PIN_LED3 = 5; 
@@ -28,23 +26,18 @@ int64_t computeFactorial(calc_t n) {
   return result;
 }
 
-// forçar o inteiro a ter N bits
 calc_t applyWordSizeLimits(int64_t rawValue) {
-  // 1. Aplica a máscara para isolar apenas os N bits úteis
   uint64_t mask = (1ULL << NUM_BITS) - 1;
   uint64_t maskedValue = (uint64_t)rawValue & mask;
 
-  // 2. Verifica se o bit de sinal de N bits está ativo
   uint64_t signBit = 1ULL << (NUM_BITS - 1);
   if (maskedValue & signBit) {
-    // Se o bit de sinal estiver ativo, estende o sinal para o tipo nativo da memória (calc_t)
     return (calc_t)(maskedValue | ~(mask));
   } else {
     return (calc_t)maskedValue;
   }
 }
 
-// acionar LEDs
 void setGPIOs(calc_t value) {
   uint8_t lsb_4bits = (uint8_t)(value & 0x0F);
   
@@ -54,7 +47,6 @@ void setGPIOs(calc_t value) {
   digitalWrite(PIN_LED4, (lsb_4bits >> 3) & 0x01);
 }
 
-// executa a operação aritmética e verifica overflow
 calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
   int64_t tempResult = 0;
   overflow = false;
@@ -64,7 +56,6 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
 
   if (op == "add") {
     tempResult = (int64_t)a + b;
-    // sinais iguais gerando "sinal oposto" (passando do range máximo aq)
     if ((a > 0 && b > 0 && tempResult > MAX_LIMIT) || 
         (a < 0 && b < 0 && tempResult < MIN_LIMIT)) {
       overflow = true;
@@ -72,7 +63,6 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
   } 
   else if (op == "sub") {
     tempResult = (int64_t)a - b;
-    // sinais opostos passando do range máximo
     if ((a > 0 && b < 0 && tempResult > MAX_LIMIT) || 
         (a < 0 && b > 0 && tempResult < MIN_LIMIT)) {
       overflow = true;
@@ -198,7 +188,6 @@ void handleCalculator() {
         binaryString += ((result >> i) & 0x01) ? "1" : "0";
     }
 
-    // geração da resposta padronizada em JSON para comunicação com o front
     String jsonResponse = "{";
     jsonResponse += "\"resultadoDecimal\":" + String((int)result) + ",";
     jsonResponse += "\"resultadoBinario\":\"" + binaryString + "\",";
@@ -206,7 +195,6 @@ void handleCalculator() {
     jsonResponse += "\"tempoExecucaoUs\":" + String(elapsed);
     jsonResponse += "}";
 
-    // log detalhado no console serial
     Serial.println("====== [PROCESSO DE EXECUÇÃO] ======");
     Serial.printf("Inputs: A = %d | B = %d | Operação = %s\n", (int)valA, (int)valB, op.c_str());
     Serial.printf("Saída Calculada (Dec): %d\n", (int)result);
@@ -253,9 +241,7 @@ void runNonRegressionTests() {
   Serial.printf(">>> [TESTS COMPLETE] %d/%d sub-rotinas passaram com sucesso.\n\n", testesPassaram, testesTotais);
 }
 
-// ==========================================
-// INICIALIZAÇÃO DO SISTEMA
-// ==========================================
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -270,10 +256,8 @@ void setup() {
   pinMode(PIN_LED4, OUTPUT);
   setGPIOs(0); 
 
-  // execução do pipeline de testes antes do servidor subir
   runNonRegressionTests();
 
-  // Inicialização do Wi-Fi Access Point Autônomo
   WiFi.softAP(ssid, password);
   IPAddress IP = WiFi.softAPIP();
   
@@ -282,7 +266,6 @@ void setup() {
   Serial.print("Endereço IP do Web Server: "); Serial.println(IP);
   Serial.println("=========================================");
 
-  // Definição das rotas HTTP do servidor
   server.on("/", handleRoot);
   server.on("/calc", handleCalculator);
 

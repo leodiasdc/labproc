@@ -1,19 +1,17 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-#define NUM_BITS 8  // alterar para 8, 16, 32 bits que todo o comportamento se adapta
+#define NUM_BITS 8  
 
 typedef int32_t calc_t;
 const calc_t MAX_LIMIT = (calc_t)((1ULL << (NUM_BITS - 1)) - 1);
 const calc_t MIN_LIMIT = (calc_t)(-(1ULL << (NUM_BITS - 1)));
 
-// credenciais do access point Wi-Fi
 const char* ssid = "LABPROC";
 const char* password = "12345678";
 
 WebServer server(80);
 
-// Definição dos pinos dos LEDs
 const int PIN_LED1 = 7; // LSB
 const int PIN_LED2 = 6; 
 const int PIN_LED3 = 5; 
@@ -28,23 +26,18 @@ int64_t computeFactorial(calc_t n) {
   return result;
 }
 
-// forçar o inteiro a ter N bits
 calc_t applyWordSizeLimits(int64_t rawValue) {
-  // 1. Aplica a máscara para isolar apenas os N bits úteis
   uint64_t mask = (1ULL << NUM_BITS) - 1;
   uint64_t maskedValue = (uint64_t)rawValue & mask;
 
-  // 2. Verifica se o bit de sinal de N bits está ativo
   uint64_t signBit = 1ULL << (NUM_BITS - 1);
   if (maskedValue & signBit) {
-    // Se o bit de sinal estiver ativo, estende o sinal para o tipo nativo da memória (calc_t)
     return (calc_t)(maskedValue | ~(mask));
   } else {
     return (calc_t)maskedValue;
   }
 }
 
-// acionar LEDs
 void setGPIOs(calc_t value) {
   uint8_t lsb_4bits = (uint8_t)(value & 0x0F);
   digitalWrite(PIN_LED1, (lsb_4bits >> 0) & 0x01);
@@ -53,7 +46,6 @@ void setGPIOs(calc_t value) {
   digitalWrite(PIN_LED4, (lsb_4bits >> 3) & 0x01);
 }
 
-// executa a operação aritmética e verifica overflow
 calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
   int64_t tempResult = 0;
   overflow = false;
@@ -63,7 +55,6 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
 
   if (op == "add") {
     tempResult = (int64_t)a + b;
-    // sinais iguais gerando "sinal oposto" (passando do range máximo aq)
     if ((a > 0 && b > 0 && tempResult > MAX_LIMIT) || 
         (a < 0 && b < 0 && tempResult < MIN_LIMIT)) {
       overflow = true;
@@ -71,15 +62,12 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
   } 
   else if (op == "sub") {
     tempResult = (int64_t)a - b;
-    // sinais opostos passando do range máximo
     if ((a > 0 && b < 0 && tempResult > MAX_LIMIT) || 
         (a < 0 && b > 0 && tempResult < MIN_LIMIT)) {
       overflow = true;
     }
   } 
   else if (op == "mul") {
-    // Implementação manual por meio de loop de somas sucessivas
-    // Tratando os sinais para realizar a soma com valores absolutos
     int64_t absA = abs((int64_t)a);
     int64_t absB = abs((int64_t)b);
     int64_t accumulatedSum = 0;
@@ -88,7 +76,6 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
       accumulatedSum += absA;
     }
 
-    // Aplica o sinal correto ao resultado final
     if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
       tempResult = -accumulatedSum;
     } else {
@@ -100,13 +87,11 @@ calc_t executeOperation(calc_t a, calc_t b, String op, bool &overflow) {
     }
   } 
   else if (op == "div") {
-    // Guarda de segurança: divisão por zero
     if (b == 0) {
       overflow = true;
       tempResult = 0; 
     } else {
       tempResult = (int64_t)a / b;
-      // No complemento de dois, o único overflow possível na divisão é MIN_LIMIT / -1
       if (tempResult > MAX_LIMIT || tempResult < MIN_LIMIT) {
         overflow = true;
       }
@@ -226,7 +211,6 @@ void handleCalculator() {
         binaryString += ((result >> i) & 0x01) ? "1" : "0";
     }
 
-    // geração da resposta padronizada em JSON para comunicação com o front
     String jsonResponse = "{";
     jsonResponse += "\"resultadoDecimal\":" + String((int)result) + ",";
     jsonResponse += "\"resultadoBinario\":\"" + binaryString + "\",";
@@ -234,10 +218,9 @@ void handleCalculator() {
     jsonResponse += "\"tempoExecucaoUs\":" + String(elapsed);
     jsonResponse += "}";
 
-    // log detalhado no console serial
     Serial.println("====== [PROCESSO DE EXECUÇÃO] ======");
     Serial.printf("Inputs: A = %d | B = %d | Operação = %s\n", (int)valA, (int)valB, op.c_str());
-    Serial.printf("Saída Calculada (Dec): %d\n", (int)result);
+    Serial.printf("Saída Calculada (Dec):\ %d\n", (int)result);
     Serial.printf("Saída Binária: %s\n", binaryString.c_str());
     Serial.printf("Status de Overflow: %s\n", overflow ? "DETECTADO!" : "OK");
     Serial.printf("Duração do Ciclo: %u microssegundos\n", elapsed);
