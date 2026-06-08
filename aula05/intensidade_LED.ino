@@ -1,15 +1,15 @@
 #include <WiFi.h>
-#include <ESPAsyncWebServer.h>
+#include <WebServer.h>
 
 const int LED_PIN = 2;          
 const int LEDC_CHANNEL_LED = 0; 
 int ledDutyResolution = 8;      
 int ledFrequency = 1000;        
 
-const char* ssid = "Sua_Rede_WiFi";
-const char* password = "Seu_Password";
+const char* ap_ssid = "ESP32_Controle";
+const char* ap_password = "password123";
 
-AsyncWebServer server(80);
+WebServer server(80);
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -59,26 +59,33 @@ void setup() {
   ledcSetup(LEDC_CHANNEL_LED, ledFrequency, ledDutyResolution);
   ledcAttachPin(LED_PIN, LEDC_CHANNEL_LED);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); }
-  Serial.println(WiFi.localIP());
+  Serial.println("\nConfigurando Ponto de Acesso (SoftAP)...");
+  WiFi.softAP(ap_ssid, ap_password);
+  
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("Endereço de IP do AP: ");
+  Serial.println(IP);
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_p(200, "text/html", index_html);
+  server.on("/", HTTP_GET, [](){
+    server.send(200, "text/html", index_html);
   });
 
-  server.on("/setled", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (request->hasParam("duty") && request->hasParam("freq")) {
-      int duty = request->getParam("duty")->value().toInt();
-      int freq = request->getParam("freq")->value().toInt();
+  server.on("/setled", HTTP_GET, [](){
+    if (server.hasArg("duty") && server.hasArg("freq")) {
+      int duty = server.arg("duty").toInt();
+      int freq = server.arg("freq").toInt();
       
       ledcWriteTone(LEDC_CHANNEL_LED, freq);
       ledcWrite(LEDC_CHANNEL_LED, duty);
     }
-    request->send(200, "text/plain", "OK");
+    server.send(200, "text/plain", "OK");
   });
 
   server.begin();
+  Serial.println("Servidor HTTP iniciado.");
 }
 
-void loop() {} // loop vazio - cpu livre
+void loop() {
+  server.handleClient();
+  delay(2); 
+}
