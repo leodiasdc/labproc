@@ -1,20 +1,19 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <ESP32Servo.h>
 
 const int LED_PIN = 2;
 const int SERVO_PIN = 4;
-const int LEDC_CHANNEL_LED = 0;
-const int LEDC_CHANNEL_SERVO = 1;
 
 int ledFreq = 1000;
-const int ledRes = 8;
-const int servoFreq = 50;
-const int servoRes = 16;
+const int ledRes = 13; 
 
 const char* ssid = "Sua_Rede_WiFi";
 const char* password = "Seu_Password";
 
 AsyncWebServer server(80);
+
+Servo meuServo;
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -38,16 +37,16 @@ const char index_html[] PROGMEM = R"rawliteral(
         <h1>ESP32 Control Dashboard</h1>
         
         <div class="control-group">
-            <h3>Slider 1: Intensidade do LED <span id="brightVal" class="value-display">128</span></h3>
-            <input type="range" id="brightSlider" min="0" max="255" value="128" class="slider" onchange="updateSystem()">
+            <h3>Intensidade do LED <span id="brightVal" class="value-display">128</span></h3>
+            <input type="range" id="brightSlider" min="0" max="255" value="128" class="slider" oninput="updateSystem()">
             
             <label style="font-weight: bold; font-size: 0.9em;">Frequência do LED: <span id="freqVal" style="color:#2980b9;">1000 Hz</span></label>
-            <input type="range" id="freqSlider" min="10" max="5000" step="10" value="1000" class="slider" onchange="updateSystem()">
+            <input type="range" id="freqSlider" min="10" max="5000" step="10" value="1000" class="slider" oninput="updateSystem()">
         </div>
 
         <div class="control-group">
-            <h3>Slider 2: Posição do Servo <span id="servoVal" class="value-display">90&deg;</span></h3>
-            <input type="range" id="servoSlider" min="0" max="180" value="90" class="slider" onchange="updateSystem()">
+            <h3>Posição do Servo <span id="servoVal" class="value-display">90&deg;</span></h3>
+            <input type="range" id="servoSlider" min="0" max="180" value="90" class="slider" oninput="updateSystem()">
         </div>
     </div>
 
@@ -57,10 +56,12 @@ const char index_html[] PROGMEM = R"rawliteral(
             var freq = document.getElementById("freqSlider").value;
             var angle = document.getElementById("servoSlider").value;
 
+            // Atualização imediata do texto na tela (UX fluida)
             document.getElementById("brightVal").innerText = duty;
             document.getElementById("freqVal").innerText = freq + " Hz";
             document.getElementById("servoVal").innerHTML = angle + "&deg;";
 
+            // Requisição Assíncrona Não-Bloqueante (RNF3)
             fetch(`/update?duty=${duty}&freq=${freq}&angle=${angle}`);
         }
     </script>
@@ -70,34 +71,56 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 void setup() {
   Serial.begin(115200);
+  ledcAttach(LED_PIN, ledFreq, ledRes);
 
-  ledcSetup(LEDC_CHANNEL_LED, ledFreq, ledRes);
-  ledcAttachPin(LED_PIN, LEDC_CHANNEL_LED);
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  
+  meuServo.setPeriodHertz(50); 
+  meuServo.attach(SERVO_PIN, 1000, 2000); 
+  meuServo.write(90); 
 
-  ledcSetup(LEDC_CHANNEL_SERVO, servoFreq, servoRes);
-  ledcAttachPin(SERVO_PIN, LEDC_CHANNEL_SERVO);
+  WiFi.mode(WIFI_AP);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  if (WiFi.softAP(ssid, password)) {
+    Serial.println("Access Point successfully started!");
+  } else {
+    Serial.println("Failed to start Access Point.");
+  }
+
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+  while (WiFi.status() != WL_CONNECTED) { 
+    delay(500); 
+    Serial.print("."); 
+  }
+  Serial.print("\nConectado com sucesso! IP Local: "); 
   Serial.println(WiFi.localIP());
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_p(200, "text/html", index_html);
+    request->send(200, "text/html", index_html);
   });
 
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
+    
     if (request->hasParam("duty") && request->hasParam("freq")) {
-      int duty = request->getParam("duty")->value().toInt();
+      int duty_8bit = request->getParam("duty")->value().toInt();
       int freq = request->getParam("freq")->value().toInt();
+
+      int duty_13bit = map(duty_8bit, 0, 255, 0, 8191);
       
-      ledcWriteTone(LEDC_CHANNEL_LED, freq);
-      ledcWrite(LEDC_CHANNEL_LED, duty);
+      ledcChangeFrequency(LED_PIN, freq, ledRes); 
+      ledcWrite(LED_PIN, duty_13bit);
     }
+    
     if (request->hasParam("angle")) {
       int angle = request->getParam("angle")->value().toInt();
-      int servoDuty = map(angle, 0, 180, 3276, 6553);
-      ledcWrite(LEDC_CHANNEL_SERVO, servoDuty);
+      meuServo.write(angle);
     }
+    
     request->send(200, "text/plain", "OK");
   });
 
