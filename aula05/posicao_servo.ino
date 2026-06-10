@@ -1,15 +1,15 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <ESP32Servo.h> 
 
-const int SERVO_PIN = 4;          
-const int LEDC_CHANNEL_SERVO = 1; 
-const int SERVO_FREQ = 50;         
-const int SERVO_RES = 16;         
+const int SERVO_PIN = 4;
 
 const char* ssid = "Sua_Rede_WiFi";
 const char* password = "Seu_Password";
 
 AsyncWebServer server(80);
+
+Servo meuServo;
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -31,7 +31,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <h1>ESP32 Servo Dashboard</h1>
         <hr>
         <h3>Controle do Servomotor</h3>
-        <p>Posição: $0^\circ$ <input type="range" id="servoSlider" min="0" max="180" value="90" class="slider" onchange="updateServo()"> $180^\circ$</p>
+        <p>Posição: 0&deg; <input type="range" id="servoSlider" min="0" max="180" value="90" class="slider" oninput="updateServo()"> 180&deg;</p>
         <p>Ângulo Atual: <span id="servoVal" class="value-display">90&deg;</span></p>
     </div>
 
@@ -39,7 +39,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         function updateServo() {
             var angle = document.getElementById("servoSlider").value;
             document.getElementById("servoVal").innerHTML = angle + "&deg;";
-            fetch(`/setservo?angle=${angle}`);
+            fetch(/setservo?angle=${angle});
         }
     </script>
 </body>
@@ -48,24 +48,43 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 void setup() {
   Serial.begin(115200);
+  
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  
+  meuServo.setPeriodHertz(50); 
+  
+  meuServo.attach(SERVO_PIN, 1000, 2000); 
 
-  ledcSetup(LEDC_CHANNEL_SERVO, SERVO_FREQ, SERVO_RES);
-  ledcAttachPin(SERVO_PIN, LEDC_CHANNEL_SERVO);
+  meuServo.write(90);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); }
-  Serial.println(WiFi.localIP());
+  WiFi.mode(WIFI_AP);
+
+  if (WiFi.softAP(ssid, password)) {
+    Serial.println("Access Point successfully started!");
+  } else {
+    Serial.println("Failed to start Access Point.");
+  }
+
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_p(200, "text/html", index_html);
+    request->send(200, "text/html", index_html);
   });
 
   server.on("/setservo", HTTP_GET, [](AsyncWebServerRequest *request){
     if (request->hasParam("angle")) {
       int angle = request->getParam("angle")->value().toInt();
       
-      int duty = map(angle, 0, 180, 3276, 6553);
-      ledcWrite(LEDC_CHANNEL_SERVO, duty);
+      meuServo.write(angle);
+      
+      Serial.print("Movendo para: ");
+      Serial.print(angle);
+      Serial.println(" graus.");
     }
     request->send(200, "text/plain", "OK");
   });
@@ -73,4 +92,6 @@ void setup() {
   server.begin();
 }
 
-void loop() {} // loop vazio - cpu livre
+void loop() {
+  // Loop vazio
+}
