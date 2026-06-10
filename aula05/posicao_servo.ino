@@ -39,7 +39,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         function updateServo() {
             var angle = document.getElementById("servoSlider").value;
             document.getElementById("servoVal").innerHTML = angle + "&deg;";
-            fetch(/setservo?angle=${angle});
+            fetch(`/setservo?angle=${angle}`);
         }
     </script>
 </body>
@@ -93,5 +93,4 @@ void setup() {
 }
 
 void loop() {
-  // Loop vazio
 }
