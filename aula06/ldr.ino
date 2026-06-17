@@ -6,7 +6,7 @@ const char* password = "12345678";
 
 AsyncWebServer server(80);
 
-const int ldrPin = 1;
+const int ldrPin = 4;
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html><html><head><meta charset='utf-8'>
@@ -53,7 +53,7 @@ void setup() {
   Serial.println(IP);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", index_html);
+    request->send(200, "text/html", index_html);
   });
 
   server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
