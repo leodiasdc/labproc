@@ -11,10 +11,11 @@ const char* password = "12345678";
 Adafruit_NeoPixel pixels(NUMPIXELS, BUILTIN_LED_PIN, NEO_GRB + NEO_KHZ800);
 AsyncWebServer server(80);
 
-const int ldrPin = 1;
+const int ldrPin = 4;
 
 // Variáveis para o Blink sem travar o código
 unsigned long anteriorMillis = 0;
+bool piscou = false;
 bool estadoLed = false;
 
 const char index_html[] PROGMEM = R"rawliteral(
@@ -68,12 +69,17 @@ void setup() {
 void loop() {
   if (millis() - anteriorMillis >= 1000) {
     anteriorMillis = millis(); 
-    estadoLed = !estadoLed;   
-    
-    if (estadoLed) {
+    if (analogRead(ldrPin) > 2500)
+      estadoLed = true;  
+    else {
+      estadoLed = false; 
+    }
+    if (piscou && estadoLed) {
       pixels.setPixelColor(0, pixels.Color(255, 255, 0)); 
+      piscou = !piscou;
     } else {
-      pixels.setPixelColor(0, pixels.Color(0, 0, 0));     
+      pixels.setPixelColor(0, pixels.Color(0, 0, 0)); 
+      piscou = !piscou;    
     }
     pixels.show();
   }

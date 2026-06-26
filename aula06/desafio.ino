@@ -21,6 +21,12 @@ volatile bool acionouBotao = false;
 volatile unsigned long tempoUltimoClique = 0;
 unsigned long tempoFimSOS = 0; 
 
+// --- Declarações do Semáforo corrigidas ---
+enum EstadoSemaforo { FASE_VERDE, FASE_AMARELO, FASE_VERMELHO };
+EstadoSemaforo faseSemaforo = FASE_VERDE;
+unsigned long semaforoMillis = 0;
+bool recomeçarSemaforo = true;
+
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html><html><head><meta charset='utf-8'>
 <title>ESP32-C3 - Monitor LDR</title>
@@ -107,6 +113,8 @@ void loop() {
   int valorLdr = analogRead(ldrPin);
   
   if (valorLdr > 1500) {
+    recomeçarSemaforo = true; 
+    
     if (millis() - anteriorMillis >= 1000) {
       anteriorMillis = millis();
       estadoLed = !estadoLed; 
@@ -118,9 +126,46 @@ void loop() {
       }
       pixels.show();
     }
-  } else {
-    pixels.setPixelColor(0, pixels.Color(0, 0, 0));
-    pixels.show();
-    estadoLed = false; 
+  } 
+  else {
+    if (recomeçarSemaforo) {
+      faseSemaforo = FASE_VERDE;
+      semaforoMillis = millis();
+      recomeçarSemaforo = false;
+      
+      pixels.setPixelColor(0, pixels.Color(0, 255, 0)); 
+      pixels.show();
+    }
+
+    unsigned long tempoPassado = millis() - semaforoMillis;
+
+    switch (faseSemaforo) {
+      case FASE_VERDE:
+        if (tempoPassado >= 3000) { 
+          faseSemaforo = FASE_AMARELO;
+          semaforoMillis = millis(); 
+          pixels.setPixelColor(0, pixels.Color(255, 180, 0)); 
+          pixels.show();
+        }
+        break;
+
+      case FASE_AMARELO:
+        if (tempoPassado >= 1000) { 
+          faseSemaforo = FASE_VERMELHO;
+          semaforoMillis = millis(); 
+          pixels.setPixelColor(0, pixels.Color(255, 0, 0)); 
+          pixels.show();
+        }
+        break;
+
+      case FASE_VERMELHO:
+        if (tempoPassado >= 4000) { 
+          faseSemaforo = FASE_VERDE;
+          semaforoMillis = millis(); 
+          pixels.setPixelColor(0, pixels.Color(0, 255, 0)); 
+          pixels.show();
+        }
+        break;
+    }
   }
 }
