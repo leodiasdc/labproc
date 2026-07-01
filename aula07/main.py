@@ -27,32 +27,72 @@ def show():
     else:
         lcd.write(0,0,num1+"!")
 
+
+def int_to_twos(n):
+    """Inteiro -> binário de 4 bits"""
+    return format(n & 0b1111, '04b')
+
+
+def twos_to_int(b):
+    """Binário de 4 bits -> inteiro"""
+    x = int(b, 2)
+    if x >= 8:
+        x -= 16
+    return x
+
+
+def overflow(n):
+    return n < -8 or n > 7
+
 def calc():
-    global num1,num2,op,state
-    try:
-        a=int(num1)
-    except:
-        return
-    if op=="!":
-        r=1
-        for i in range(2,a+1): r*=i
+
+    global num1, num2, op, state
+
+    a = int(num1)
+
+    if op == "!":
+
+        r = 1
+        for i in range(2, a + 1):
+            r *= i
+
     else:
-        b=int(num2)
-        if op=="+": r=a+b
-        elif op=="-": r=a-b
-        elif op=="*": r=a*b
-        else: return
+
+        b = int(num2)
+
+        if op == "+":
+            r = a + b
+
+        elif op == "-":
+            r = a - b
+
+        elif op == "*":
+            r = a * b
+
     lcd.clear()
-    expr=num1+op+("" if op=="!" else num2)
+
+    expr = num1 + op + ("" if op == "!" else num2)
+
     lcd.write(0,0,expr)
-    if r<0 or r>15:
+
+    if overflow(r):
+
         lcd.write(0,1,"OVERFLOW")
+
     else:
-        lcd.write(0,1,"="+str(r))
+
+        binario = int_to_twos(r)
+
+        lcd.write(0,1,f"{r}:{binario}")
+
     import time
-    time.sleep(3)
-    num1=num2=op=""
+    time.sleep(4)
+
+    num1=""
+    num2=""
+    op=""
     state="NUM1"
+
     lcd.clear()
 
 while True:
