@@ -18,6 +18,7 @@ int main() {
     int resultado_puro;
     int resultado_sinalizado;
     int overflow = 0;
+    int operando_overflow = 0;
     
     printf("Digite o primeiro inteiro (4 bits): ");
     if (scanf("%d", &num1) != 1) return 1;
@@ -32,9 +33,11 @@ int main() {
     
     if (num1 < -8 || num1 > 7) {
         overflow = 1;
+        operando_overflow = 1;
     }
     if (operador != '!' && (num2 < -8 || num2 > 7)) {
         overflow = 1;
+        operando_overflow = 1;
     }
     
     // Garantimos a extensão de sinal para lidar com os bits corretamente
@@ -101,8 +104,11 @@ int main() {
     
     printf("Resultado: %d\n", exibicao_final);
     
-    if (overflow) {
+    if (overflow && !operando_overflow) {
         printf("AVISO: Ocorreu OVERFLOW!\n");
+    }
+    else if (operando_overflow) {
+        printf("AVISO: Um ou mais operandos estão fora do intervalo de 4 bits!\n");
     }
     
     return 0;
