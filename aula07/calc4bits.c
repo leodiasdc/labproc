@@ -37,7 +37,6 @@ int main() {
         overflow = 1;
     }
     
-    // Garantimos a extensão de sinal para lidar com os bits corretamente
     int n1 = estender_sinal_4bits(num1);
     int n2 = estender_sinal_4bits(num2);
     
