@@ -13,7 +13,7 @@ int32_t estender_sinal_4bits(int32_t val) {
 }
 
 int main() {
-    int num1, num2;
+    int num1, num2 = 0;
     char operador;
     int resultado_puro;
     int resultado_sinalizado;
@@ -30,6 +30,14 @@ int main() {
         if (scanf("%d", &num2) != 1) return 1;
     }
     
+    if (num1 < -8 || num1 > 7) {
+        overflow = 1;
+    }
+    if (operador != '!' && (num2 < -8 || num2 > 7)) {
+        overflow = 1;
+    }
+    
+    // Garantimos a extensão de sinal para lidar com os bits corretamente
     int n1 = estender_sinal_4bits(num1);
     int n2 = estender_sinal_4bits(num2);
     
@@ -40,18 +48,21 @@ int main() {
                 overflow = 1;
             }
             break;
+            
         case '-':
             resultado_sinalizado = n1 - n2;
             if (resultado_sinalizado < -8 || resultado_sinalizado > 7) {
                 overflow = 1;
             }
             break;
+            
         case '*':
             resultado_sinalizado = n1 * n2;
             if (resultado_sinalizado < -8 || resultado_sinalizado > 7) {
                 overflow = 1;
             }
             break;
+            
         case '/':
             if (n2 == 0) {
                 printf("Divisão por zero não permitida!\n");
@@ -64,23 +75,22 @@ int main() {
                 resultado_sinalizado = n1 / n2;
             }
             break;
+            
         case '!':
             if (n1 < 0) {
                 printf("Erro: Fatorial de número negativo não existe!\n");
                 return 1;
             }
-            if (n1 > 3) {
+            if (n1 > 3) { // 4! = 24 (maior que 7)
                 overflow = 1;
             }
             unsigned long long fatorial = 1;
             for(int i = 1; i <= n1; i++) {
                 fatorial *= i;
-                if (fatorial > 7 && n1 <= 3) {
-                    overflow = 1;
-                }
             }
             resultado_sinalizado = (int)fatorial;
             break;
+            
         default:
             printf("Operador inválido!\n");
             return 1;
