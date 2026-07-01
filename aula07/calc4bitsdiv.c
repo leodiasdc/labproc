@@ -14,7 +14,7 @@ int main() {
     printf("Digite o segundo inteiro (4 bits): ");
     scanf("%d", &num2);
     
-    printf("Digite o operador (+, -, *, !): ");
+    printf("Digite o operador (+, -, *, /, !): ");
     scanf(" %c", &operador);
     
     num1 = num1 & MASK_4BIT;
@@ -32,6 +32,14 @@ int main() {
         case '*':
             resultado = (num1 * num2) & MASK_4BIT;
             printf("Resultado: %d\n", resultado);
+            break;
+        case '/':
+            if (num2 == 0) {
+                printf("Divisão por zero não permitida!\n");
+            } else {
+                resultado = (num1 / num2) & MASK_4BIT;
+                printf("Resultado: %d\n", resultado);
+            }
             break;
         case '!': {
             unsigned long long fatorial = 1;
