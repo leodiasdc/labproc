@@ -36,15 +36,13 @@ int main() {
     switch(operador) {
         case '+':
             resultado_sinalizado = n1 + n2;
-            if ((n1 > 0 && n2 > 0 && resultado_sinalizado <= 0) || 
-                (n1 < 0 && n2 < 0 && resultado_sinalizado >= 0)) {
+            if (resultado_sinalizado < -8 || resultado_sinalizado > 7) {
                 overflow = 1;
             }
             break;
         case '-':
             resultado_sinalizado = n1 - n2;
-            if ((n1 > 0 && n2 < 0 && resultado_sinalizado <= 0) || 
-                (n1 < 0 && n2 > 0 && resultado_sinalizado >= 0)) {
+            if (resultado_sinalizado < -8 || resultado_sinalizado > 7) {
                 overflow = 1;
             }
             break;
@@ -59,9 +57,11 @@ int main() {
                 printf("Divisão por zero não permitida!\n");
                 return 1;
             }
-            resultado_sinalizado = n1 / n2;
-            if (resultado_sinalizado < -8 || resultado_sinalizado > 7) {
+            if (n1 == -8 && n2 == -1) {
                 overflow = 1;
+                resultado_sinalizado = 8;
+            } else {
+                resultado_sinalizado = n1 / n2;
             }
             break;
         case '!':
@@ -69,14 +69,17 @@ int main() {
                 printf("Erro: Fatorial de número negativo não existe!\n");
                 return 1;
             }
+            if (n1 > 3) {
+                overflow = 1;
+            }
             unsigned long long fatorial = 1;
             for(int i = 1; i <= n1; i++) {
                 fatorial *= i;
+                if (fatorial > 7 && n1 <= 3) {
+                    overflow = 1;
+                }
             }
             resultado_sinalizado = (int)fatorial;
-            if (fatorial > 7) {
-                overflow = 1;
-            }
             break;
         default:
             printf("Operador inválido!\n");
