@@ -13,7 +13,7 @@ int main() {
     int64_t entrada1, entrada2 = 0;
     char operador;
     struct timespec start, end;
-    double t4 = 0, t8 = 0, t16 = 0, t32 = 0;
+    double t4 = 0, t8 = 0, t16 = 0, t32 = 0, t64 = 0;
 
     printf("Digite o primeiro número: ");
     if (scanf("%lld", &entrada1) != 1) return 1;
@@ -26,18 +26,19 @@ int main() {
         if (scanf("%lld", &entrada2) != 1) return 1;
     }
 
-    // Inicialização das variáveis (simulando 4 bits com máscara 0x0F)
+    // Inicialização das variáveis para todas as larguras de banda
     uint8_t  a4  = ((uint8_t)entrada1) & 0x0F, b4  = ((uint8_t)entrada2) & 0x0F, r4 = 0;
     uint8_t  a8  = (uint8_t)entrada1,          b8  = (uint8_t)entrada2,          r8 = 0;
     uint16_t a16 = (uint16_t)entrada1,         b16 = (uint16_t)entrada2,         r16 = 0;
     uint32_t a32 = (uint32_t)entrada1,         b32 = (uint32_t)entrada2,         r32 = 0;
+    uint64_t a64 = (uint64_t)entrada1,         b64 = (uint64_t)entrada2,         r64 = 0;
 
     printf("\n=== CALCULADORA BENCHMARK (10M de iterações) ===\n");
     
     if (operador == '!') {
         uint32_t val = (entrada1 < 0) ? 0 : (uint32_t)entrada1;
         
-        // 4 BITS (Simulado via máscara)
+        // 4 BITS
         clock_gettime(CLOCK_MONOTONIC, &start);
         for(volatile int i = 0; i < ITERATIONS; i++) { 
             uint8_t fat4 = 1;
@@ -77,6 +78,16 @@ int main() {
         clock_gettime(CLOCK_MONOTONIC, &end);
         t32 = calcular_ns(start, end);
 
+        // 64 BITS
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        for(volatile int i = 0; i < ITERATIONS; i++) { 
+            uint64_t fat64 = 1;
+            for(uint64_t j = 1; j <= val; j++) { fat64 *= j; }
+            r64 = fat64;
+        }
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        t64 = calcular_ns(start, end);
+
     } else {
         switch (operador) {
             case '+':
@@ -99,6 +110,11 @@ int main() {
                 for(volatile int i = 0; i < ITERATIONS; i++) { r32 = a32 + b32; }
                 clock_gettime(CLOCK_MONOTONIC, &end);
                 t32 = calcular_ns(start, end);
+
+                clock_gettime(CLOCK_MONOTONIC, &start);
+                for(volatile int i = 0; i < ITERATIONS; i++) { r64 = a64 + b64; }
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                t64 = calcular_ns(start, end);
                 break;
 
             case '-':
@@ -121,6 +137,11 @@ int main() {
                 for(volatile int i = 0; i < ITERATIONS; i++) { r32 = a32 - b32; }
                 clock_gettime(CLOCK_MONOTONIC, &end);
                 t32 = calcular_ns(start, end);
+
+                clock_gettime(CLOCK_MONOTONIC, &start);
+                for(volatile int i = 0; i < ITERATIONS; i++) { r64 = a64 - b64; }
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                t64 = calcular_ns(start, end);
                 break;
 
             case '*':
@@ -143,6 +164,11 @@ int main() {
                 for(volatile int i = 0; i < ITERATIONS; i++) { r32 = a32 * b32; }
                 clock_gettime(CLOCK_MONOTONIC, &end);
                 t32 = calcular_ns(start, end);
+
+                clock_gettime(CLOCK_MONOTONIC, &start);
+                for(volatile int i = 0; i < ITERATIONS; i++) { r64 = a64 * b64; }
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                t64 = calcular_ns(start, end);
                 break;
 
             default:
@@ -151,12 +177,14 @@ int main() {
         }
     }
 
-    printf("\n%-10s | %-12s | %-15s\n", "Largura", "Resultado", "Tempo Total (ms)");
-    printf("-----------------------------------------------\n");
-    printf("%-10s | %-12u | %-15.2f\n", "4 bits", r4, t4 / 1e6);
-    printf("%-10s | %-12u | %-15.2f\n", "8 bits", r8, t8 / 1e6);
-    printf("%-10s | %-12u | %-15.2f\n", "16 bits", r16, t16 / 1e6);
-    printf("%-10s | %-12u | %-15.2f\n", "32 bits", r32, t32 / 1e6);
+    // Tabela estendida para suportar formatação de 64-bits sem quebras
+    printf("\n%-10s | %-20s | %-15s\n", "Largura", "Resultado", "Tempo Total (ms)");
+    printf("-------------------------------------------------------------\n");
+    printf("%-10s | %-20u | %-15.2f\n", "4 bits", r4, t4 / 1e6);
+    printf("%-10s | %-20u | %-15.2f\n", "8 bits", r8, t8 / 1e6);
+    printf("%-10s | %-20u | %-15.2f\n", "16 bits", r16, t16 / 1e6);
+    printf("%-10s | %-20u | %-15.2f\n", "32 bits", r32, t32 / 1e6);
+    printf("%-10s | %-20llu | %-15.2f\n", "64 bits", (unsigned long long)r64, t64 / 1e6);
 
     return 0;
 }
