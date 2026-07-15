@@ -1,9 +1,9 @@
 import threading, time
 from gpiozero import Device, PWMLED, AngularServo, Buzzer, Button
-from gpiozero.pins.pigpio import PiGPIOFactory
 from gpiozero.tones import Tone
 
-Device.pin_factory = PiGPIOFactory()
+# Importação e configuração do PiGPIOFactory removidas.
+# O gpiozero usará o factory padrão do sistema automaticamente.
 
 led = PWMLED(17, initial_value=0, frequency=1000)
 buzzer = Buzzer(12)
