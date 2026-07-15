@@ -8,6 +8,8 @@
 from gpiozero import AngularServo
 import time
 
+led = PWMLED(17 ,initial_value=0 ,frequency=1000)
+
 myGPIO=18
 SERVO_DELAY_SEC = 0.001 
 myCorrection=0.0
@@ -20,9 +22,11 @@ def loop():
         for angle in range(0, 181, 1):   # make servo rotate from 0 to 180 deg
             servo.angle = angle
             time.sleep(SERVO_DELAY_SEC)
+            led.value = angle / 180.0     # set dc value as the duty cycle
         time.sleep(0.5)
         for angle in range(180, -1, -1): # make servo rotate from 180 to 0 deg
             servo.angle = angle
+            led.value = angle / 180.0     # set dc value as the duty cycle
             time.sleep(SERVO_DELAY_SEC)
         time.sleep(0.5)
 
