@@ -21,17 +21,17 @@ def loop():
         buzzer.on()
         led.on()
         time.sleep(0.1)
-        buzzer.stop()
+        buzzer.off()
         for angle in range(0, 181, 1):   # make servo rotate from 0 to 180 deg
             servo.angle = angle
             time.sleep(SERVO_DELAY_SEC)
         drift_time = time.time() - initial_time
         time.sleep(max(0, 1 - drift_time))
         initial_time = time.time() 
-        buzzer.off()
+        buzzer.on()
         led.off()
         time.sleep(0.1)
-        buzzer.stop()
+        buzzer.off()
         for angle in range(180, -1, -1): # make servo rotate from 180 to 0 deg
             servo.angle = angle
             time.sleep(SERVO_DELAY_SEC)

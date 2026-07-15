@@ -1,12 +1,12 @@
 import threading, time
-from gpiozero import Device, PWMLED, AngularServo, TonalBuzzer, Button
+from gpiozero import Device, PWMLED, AngularServo, Buzzer, Button
 from gpiozero.pins.pigpio import PiGPIOFactory
 from gpiozero.tones import Tone
 
 Device.pin_factory = PiGPIOFactory()
 
 led = PWMLED(17, initial_value=0, frequency=1000)
-buzzer = TonalBuzzer(4)
+buzzer = Buzzer(12)
 myCorrection = 0.0
 maxPW = (2.5 + myCorrection) / 1000
 minPW = (0.5 - myCorrection) / 1000
@@ -62,10 +62,10 @@ def beat_worker():
             time.sleep(sleep_time)
         else:
             next_tick = now
-        buzzer.play(Tone(220.0))
+        buzzer.on()
         led.on()
         time.sleep(0.05)
-        buzzer.stop()
+        buzzer.off()
         led.off()
         servo_event.set()
         next_tick += get_interval()
