@@ -30,8 +30,8 @@ def decrease_bpm():
     with bpm_lock:
         current_bpm = max(MIN_BPM, current_bpm - BPM_STEP)
 
-btn_up = Button(22, bounce_time=0.05, pull_up=True)
-btn_down = Button(23, bounce_time=0.05, pull_up=True)
+btn_up = Button(20, bounce_time=0.05, pull_up=True)
+btn_down = Button(21, bounce_time=0.05, pull_up=True)
 btn_up.when_pressed = increase_bpm
 btn_down.when_pressed = decrease_bpm
 
